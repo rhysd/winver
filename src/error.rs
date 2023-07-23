@@ -17,7 +17,7 @@ pub struct Error(Box<ErrorKind>);
 
 impl Error {
     fn kind(&self) -> &ErrorKind {
-        &*self.0
+        &self.0
     }
 }
 
