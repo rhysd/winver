@@ -3,19 +3,23 @@ use core::ptr::null_mut;
 use std::alloc::{self, Layout, LayoutError};
 use std::error::Error as StdError;
 use std::fmt;
+use std::mem;
 use windows::core::{Error as WinError, PCWSTR};
-use windows::w;
 use windows::Win32::Foundation::MAX_PATH;
 use windows::Win32::Storage::FileSystem::{
     GetFileVersionInfoSizeW, GetFileVersionInfoW, VerQueryValueW, VS_FIXEDFILEINFO,
 };
-use windows::Win32::System::LibraryLoader::{GetModuleFileNameW, GetModuleHandleW};
+use windows::Win32::System::LibraryLoader::{GetModuleFileNameW, GetModuleHandleW, GetProcAddress};
+use windows::Win32::System::SystemInformation::OSVERSIONINFOW;
+use windows::{s, w};
 
 #[derive(Debug)]
 enum ErrorKind {
     Windows(WinError),
     Layout(LayoutError),
     Kernel32VerNotFound,
+    NoRtlGetVersion,
+    RtlGetVersionFailure(i32),
 }
 
 #[derive(Debug)]
@@ -35,6 +39,14 @@ impl fmt::Display for Error {
             ErrorKind::Kernel32VerNotFound => {
                 write!(f, "Version information is not found in kernel32.dll")
             }
+            ErrorKind::NoRtlGetVersion => {
+                write!(f, "RtlGetVersion function does not exist in ntdll.dll")
+            }
+            ErrorKind::RtlGetVersionFailure(status) => write!(
+                f,
+                "RtlGetVersion function call failed with status {:x}",
+                *status,
+            ),
         }
     }
 }
@@ -49,15 +61,21 @@ impl StdError for Error {
     }
 }
 
+impl From<ErrorKind> for Error {
+    fn from(kind: ErrorKind) -> Self {
+        Self(Box::new(kind))
+    }
+}
+
 impl From<WinError> for Error {
     fn from(err: WinError) -> Self {
-        Self(Box::new(ErrorKind::Windows(err)))
+        ErrorKind::Windows(err).into()
     }
 }
 
 impl From<LayoutError> for Error {
     fn from(err: LayoutError) -> Self {
-        Self(Box::new(ErrorKind::Layout(err)))
+        ErrorKind::Layout(err).into()
     }
 }
 
@@ -92,7 +110,8 @@ pub struct WindowsVersion {
 }
 
 impl WindowsVersion {
-    pub fn from_kernel32_dll() -> Result<WindowsVersion, Error> {
+    // https://github.com/python/cpython/blob/a1a3193990cd6658c1fe859b88a2bc03971a16df/Python/sysmodule.c#L1533
+    pub fn from_kernel32() -> Result<WindowsVersion, Error> {
         let handle = unsafe { GetModuleHandleW(w!("kernel32.dll"))? };
 
         let mut path = [0u16; MAX_PATH as usize];
@@ -132,7 +151,7 @@ impl WindowsVersion {
         }
 
         if info_len == 0 || info.is_null() {
-            return Err(Error(Box::new(ErrorKind::Kernel32VerNotFound)));
+            return Err(ErrorKind::Kernel32VerNotFound.into());
         }
 
         let info = info as *const VS_FIXEDFILEINFO;
@@ -148,6 +167,40 @@ impl WindowsVersion {
             build,
         })
     }
+
+    // https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/wdm/nf-wdm-rtlgetversion
+    pub fn from_ntdll() -> Result<WindowsVersion, Error> {
+        let handle = unsafe { GetModuleHandleW(w!("ntdll.dll"))? };
+
+        let Some(proc) = (unsafe { GetProcAddress(handle, s!("RtlGetVersion")) }) else {
+            return Err(ErrorKind::NoRtlGetVersion.into());
+        };
+
+        type RtlGetVersionFunc = unsafe extern "system" fn(*mut OSVERSIONINFOW) -> i32;
+        let proc: RtlGetVersionFunc = unsafe { mem::transmute(proc) };
+
+        let mut info: OSVERSIONINFOW = unsafe { mem::zeroed() };
+        let status = unsafe { proc(&mut info as *mut _) };
+        if status != 0 {
+            return Err(ErrorKind::RtlGetVersionFailure(status).into());
+        }
+
+        let major = info.dwMajorVersion as u16;
+        let minor = info.dwMinorVersion as u16;
+        let build = info.dwBuildNumber as u16;
+
+        Ok(Self {
+            major,
+            minor,
+            build,
+        })
+    }
+}
+
+impl fmt::Display for WindowsVersion {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}.{}.{}", self.major, self.minor, self.build)
+    }
 }
 
 #[cfg(test)]
@@ -156,7 +209,15 @@ mod tests {
 
     #[test]
     fn test_from_kernel32_dll() {
-        let v = WindowsVersion::from_kernel32_dll().unwrap();
+        let v = WindowsVersion::from_kernel32().unwrap();
+        assert_eq!(v.major, 10, "{:?}", v);
+        assert_eq!(v.minor, 0, "{:?}", v);
+        assert!(v.build > 0, "{:?}", v);
+    }
+
+    #[test]
+    fn test_from_ntdll() {
+        let v = WindowsVersion::from_ntdll().unwrap();
         assert_eq!(v.major, 10, "{:?}", v);
         assert_eq!(v.minor, 0, "{:?}", v);
         assert!(v.build > 0, "{:?}", v);
