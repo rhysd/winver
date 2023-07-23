@@ -1,3 +1,5 @@
+#![doc = include_str!("../README.md")]
+
 #[cfg(not(windows))]
 compile_error!("'winver' crate is only available on Windows");
 
