@@ -205,6 +205,19 @@ impl WindowsVersion {
             build: info.dwBuildNumber,
         })
     }
+
+    pub fn detect() -> Option<WindowsVersion> {
+        if let Ok(version) = Self::from_ntdll() {
+            return Some(version);
+        }
+        if let Ok(version) = Self::from_kernel32() {
+            return Some(version);
+        }
+        if let Ok(version) = Self::from_get_version_ex() {
+            return Some(version);
+        }
+        None
+    }
 }
 
 impl fmt::Display for WindowsVersion {
@@ -238,5 +251,13 @@ mod tests {
         let v = WindowsVersion::from_get_version_ex().unwrap();
         // `GetVersionExW` may return wrong version
         assert!(v.major >= 6, "{:?}", v);
+    }
+
+    #[test]
+    fn test_detect() {
+        let v = WindowsVersion::detect().unwrap();
+        assert_eq!(v.major, 10, "{:?}", v);
+        assert_eq!(v.minor, 0, "{:?}", v);
+        assert!(v.build > 0, "{:?}", v);
     }
 }
