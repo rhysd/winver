@@ -104,9 +104,9 @@ impl Drop for Buffer {
 
 #[derive(Debug)]
 pub struct WindowsVersion {
-    pub major: u16,
-    pub minor: u16,
-    pub build: u16,
+    pub major: u32,
+    pub minor: u32,
+    pub build: u32,
 }
 
 impl WindowsVersion {
@@ -154,17 +154,12 @@ impl WindowsVersion {
             return Err(ErrorKind::Kernel32VerNotFound.into());
         }
 
-        let info = info as *const VS_FIXEDFILEINFO;
-
-        let info = unsafe { &*info };
-        let major = (info.dwProductVersionMS >> 16) as u16;
-        let minor = (info.dwProductVersionMS & 0xffff) as u16;
-        let build = (info.dwProductVersionLS >> 16) as u16;
+        let info = unsafe { &*(info as *const VS_FIXEDFILEINFO) };
 
         Ok(Self {
-            major,
-            minor,
-            build,
+            major: info.dwProductVersionMS >> 16,
+            minor: info.dwProductVersionMS & 0xffff,
+            build: info.dwProductVersionLS >> 16,
         })
     }
 
@@ -187,14 +182,10 @@ impl WindowsVersion {
             return Err(ErrorKind::RtlGetVersionFailure(status).into());
         }
 
-        let major = info.dwMajorVersion as u16;
-        let minor = info.dwMinorVersion as u16;
-        let build = info.dwBuildNumber as u16;
-
         Ok(Self {
-            major,
-            minor,
-            build,
+            major: info.dwMajorVersion,
+            minor: info.dwMinorVersion,
+            build: info.dwBuildNumber,
         })
     }
 
@@ -208,14 +199,10 @@ impl WindowsVersion {
             return Err(WinError::from_win32().into());
         }
 
-        let major = info.dwMajorVersion as u16;
-        let minor = info.dwMinorVersion as u16;
-        let build = info.dwBuildNumber as u16;
-
         Ok(Self {
-            major,
-            minor,
-            build,
+            major: info.dwMajorVersion,
+            minor: info.dwMinorVersion,
+            build: info.dwBuildNumber,
         })
     }
 }
