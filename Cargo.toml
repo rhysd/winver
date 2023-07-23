@@ -1,5 +1,5 @@
 [package]
-name = "windows_ver"
+name = "winver"
 version = "0.1.0"
 edition = "2021"
 rust-version = "1.56.0" # For Rust 2021

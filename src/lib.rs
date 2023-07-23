@@ -1,5 +1,5 @@
 #[cfg(not(windows))]
-compile_error!("windows_ver crate is only available on Windows");
+compile_error!("'winver' crate is only available on Windows");
 
 mod detect;
 mod error;
