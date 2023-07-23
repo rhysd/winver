@@ -3,7 +3,6 @@ use crate::WindowsVersion;
 use core::ffi::c_void;
 use core::ptr::null_mut;
 use std::alloc::{self, Layout};
-use std::fmt;
 use std::mem;
 use windows::core::{Error as WinError, PCWSTR};
 use windows::Win32::Foundation::MAX_PATH;
@@ -145,12 +144,6 @@ impl WindowsVersion {
             return Some(version);
         }
         None
-    }
-}
-
-impl fmt::Display for WindowsVersion {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}.{}.{}", self.major, self.minor, self.build)
     }
 }
 

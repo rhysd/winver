@@ -1,4 +1,5 @@
 use std::cmp::Ordering;
+use std::fmt;
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct WindowsVersion {
@@ -32,6 +33,12 @@ impl PartialOrd for WindowsVersion {
     }
 }
 
+impl fmt::Display for WindowsVersion {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}.{}.{}", self.major, self.minor, self.build)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -57,5 +64,11 @@ mod tests {
         assert!(WindowsVersion::new(1, 2, 3) < WindowsVersion::new(1, 2, 4));
         assert!(WindowsVersion::new(1, 2, 3) < WindowsVersion::new(1, 3, 0));
         assert!(WindowsVersion::new(0, 2, 3) < WindowsVersion::new(1, 0, 0));
+    }
+
+    #[test]
+    fn test_display() {
+        let v = WindowsVersion::new(1, 2, 3);
+        assert_eq!(&format!("{}", v), "1.2.3");
     }
 }
