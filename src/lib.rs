@@ -10,7 +10,7 @@ use windows::Win32::Storage::FileSystem::{
     GetFileVersionInfoSizeW, GetFileVersionInfoW, VerQueryValueW, VS_FIXEDFILEINFO,
 };
 use windows::Win32::System::LibraryLoader::{GetModuleFileNameW, GetModuleHandleW, GetProcAddress};
-use windows::Win32::System::SystemInformation::OSVERSIONINFOW;
+use windows::Win32::System::SystemInformation::{GetVersionExW, OSVERSIONINFOW};
 use windows::{s, w};
 
 #[derive(Debug)]
@@ -180,9 +180,32 @@ impl WindowsVersion {
         let proc: RtlGetVersionFunc = unsafe { mem::transmute(proc) };
 
         let mut info: OSVERSIONINFOW = unsafe { mem::zeroed() };
+        info.dwOSVersionInfoSize = mem::size_of::<OSVERSIONINFOW>() as u32;
+
         let status = unsafe { proc(&mut info as *mut _) };
         if status != 0 {
             return Err(ErrorKind::RtlGetVersionFailure(status).into());
+        }
+
+        let major = info.dwMajorVersion as u16;
+        let minor = info.dwMinorVersion as u16;
+        let build = info.dwBuildNumber as u16;
+
+        Ok(Self {
+            major,
+            minor,
+            build,
+        })
+    }
+
+    // https://learn.microsoft.com/en-us/windows/win32/api/sysinfoapi/nf-sysinfoapi-getversionexw
+    pub fn from_get_version_ex() -> Result<WindowsVersion, Error> {
+        let mut info: OSVERSIONINFOW = unsafe { mem::zeroed() };
+        info.dwOSVersionInfoSize = mem::size_of::<OSVERSIONINFOW>() as u32;
+
+        let success = unsafe { GetVersionExW(&mut info as *mut _) };
+        if !success.as_bool() {
+            return Err(WinError::from_win32().into());
         }
 
         let major = info.dwMajorVersion as u16;
@@ -221,5 +244,12 @@ mod tests {
         assert_eq!(v.major, 10, "{:?}", v);
         assert_eq!(v.minor, 0, "{:?}", v);
         assert!(v.build > 0, "{:?}", v);
+    }
+
+    #[test]
+    fn test_from_get_version() {
+        let v = WindowsVersion::from_get_version_ex().unwrap();
+        // `GetVersionExW` may return wrong version
+        assert!(v.major >= 6, "{:?}", v);
     }
 }
