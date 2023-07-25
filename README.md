@@ -1,15 +1,15 @@
 `winver` crate
 ==============
+[![CI][ci-badge]][ci]
 
-`winver` is a Rust crate to detect real Windows OS version.
+`winver` is a tiny Rust crate to detect real Windows OS version depending on [`windows` crate][windows] only.
 
 ```rust
 use winver::WindowsVersion;
 
-if let Some(version) = WindowsVersion::detect() {
-    if version >= WindowsVersion::new(10, 0, 15063) {
-        println!("OS version is 10.0.15063 or later");
-    }
+let version = WindowsVersion::detect().unwrap();
+if version >= WindowsVersion::new(10, 0, 15063) {
+    println!("OS version is 10.0.15063 or later");
 }
 ```
 
@@ -18,16 +18,21 @@ easily and safely avoiding the pitfalls.
 
 The above `WindowsVersion::detect` function works as follows:
 
-1. Try to get OS version from [`RtlGetVersion`](https://learn.microsoft.com/en-us/windows/win32/devnotes/rtlgetversion) function
-   in ntdll.dll. However it is a kernel mode function and ntdll.dll does not always exist.
-2. Try to get OS version from a file version information of kernel32.dll. However there is no guarantee to have permission to
-   access the file.
-3. Try to get OS version from [`GetVersionExW`](https://learn.microsoft.com/en-us/windows/win32/api/sysinfoapi/nf-sysinfoapi-getversionexw)
-   function as fallback. This is an official way to get OS version but it lies if the program is running in compatibility mode
-   and it requires to [embed compatibility manifest in your executable](https://learn.microsoft.com/en-us/windows/win32/sysinfo/targeting-your-application-at-windows-8-1).
-4. Give up getting OS version and return `None`.
+1. Try to get OS version from [`RtlGetVersion`][wtlgetver] function in ntdll.dll. However it is a kernel mode function and
+   ntdll.dll does not always exist.
+2. Try to get OS version from [WMI][wmi]'s [`Win32_OperatingSystem` provider][win32prov] via [WQL][wql]. WMI may not be available
+   due to the process security level setting.
+3. Try to get OS version from a file version information of kernel32.dll. However the version information in file might be slightly
+   different from the actual OS version.
+4. Try to get OS version from [`GetVersionExW`][getver] function as fallback. This is an official way to get OS version but it
+   lies if the program is running in compatibility mode and it requires to [embed compatibility manifest in your executable][manifest].
+5. Give up getting OS version and return `None`.
 
-This logic was implemented referring to the implementation of [Python's `sys.getwindowsversion`](https://docs.python.org/3/library/sys.html#sys.getwindowsversion).
+Each steps are implemented as isolated funcitons in `WindowsVersion`. For example, the step 1. is equivalent to
+`WindowsVersion::from_ntdll`.
+
+This logic was implemented referring to the implementation of Python's [`sys.getwindowsversion`][getwindowsversion] and
+[`platform.win32_ver`][win32_ver].
 
 ## Installation
 
@@ -41,3 +46,15 @@ winver = "0.1.0"
 ## License
 
 Distributed under [the MIT license](./LICENSE).
+
+[ci-badge]: https://github.com/rhysd/winver/actions/workflows/ci.yaml/badge.svg
+[ci]: https://github.com/rhysd/winver/actions/workflows/ci.yaml
+[windows]: https://crates.io/crates/windows
+[wtlgetver]: https://learn.microsoft.com/en-us/windows/win32/devnotes/rtlgetversion
+[wmi]: https://learn.microsoft.com/en-us/windows/win32/wmisdk/wmi-start-page
+[win32prov]: https://learn.microsoft.com/en-us/windows/win32/cimwin32prov/win32-operatingsystem
+[wql]: https://learn.microsoft.com/en-us/windows/win32/wmisdk/querying-with-wql
+[getver]: https://learn.microsoft.com/en-us/windows/win32/api/sysinfoapi/nf-sysinfoapi-getversionexw
+[manifest]: https://learn.microsoft.com/en-us/windows/win32/sysinfo/targeting-your-application-at-windows-8-1
+[getwindowsversion]: https://docs.python.org/3/library/sys.html#sys.getwindowsversion
+[win32_ver]: https://docs.python.org/3/library/platform.html#platform.win32_ver
