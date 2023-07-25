@@ -4,13 +4,23 @@ use core::ffi::c_void;
 use core::ptr::null_mut;
 use std::alloc::{self, Layout};
 use std::mem;
-use windows::core::{Error as WinError, PCWSTR};
+use windows::core::{Error as WinError, BSTR, PCWSTR};
 use windows::Win32::Foundation::MAX_PATH;
 use windows::Win32::Storage::FileSystem::{
     GetFileVersionInfoSizeW, GetFileVersionInfoW, VerQueryValueW, VS_FIXEDFILEINFO,
 };
+use windows::Win32::System::Com::{
+    CoCreateInstance, CoInitializeEx, CoInitializeSecurity, CoSetProxyBlanket,
+    CLSCTX_INPROC_SERVER, COINIT_APARTMENTTHREADED, EOAC_NONE, RPC_C_AUTHN_LEVEL_CALL,
+    RPC_C_AUTHN_LEVEL_DEFAULT, RPC_C_IMP_LEVEL_IMPERSONATE, VARIANT, VT_BSTR,
+};
 use windows::Win32::System::LibraryLoader::{GetModuleFileNameW, GetModuleHandleW, GetProcAddress};
+use windows::Win32::System::Rpc::{RPC_C_AUTHN_WINNT, RPC_C_AUTHZ_NONE};
 use windows::Win32::System::SystemInformation::{GetVersionExW, OSVERSIONINFOW};
+use windows::Win32::System::Wmi::{
+    IWbemLocator, WbemLocator, WBEM_FLAG_CONNECT_USE_MAX_WAIT, WBEM_FLAG_FORWARD_ONLY,
+    WBEM_FLAG_RETURN_IMMEDIATELY, WBEM_INFINITE,
+};
 use windows::{s, w};
 
 struct Buffer {
@@ -38,7 +48,7 @@ impl Drop for Buffer {
 
 impl WindowsVersion {
     // https://github.com/python/cpython/blob/a1a3193990cd6658c1fe859b88a2bc03971a16df/Python/sysmodule.c#L1533
-    pub fn from_kernel32() -> Result<WindowsVersion, Error> {
+    pub fn from_kernel32() -> Result<Self, Error> {
         let handle = unsafe { GetModuleHandleW(w!("kernel32.dll"))? };
 
         let mut path = [0u16; MAX_PATH as usize];
@@ -91,7 +101,7 @@ impl WindowsVersion {
     }
 
     // https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/wdm/nf-wdm-rtlgetversion
-    pub fn from_ntdll() -> Result<WindowsVersion, Error> {
+    pub fn from_ntdll() -> Result<Self, Error> {
         let handle = unsafe { GetModuleHandleW(w!("ntdll.dll"))? };
 
         let Some(proc) = (unsafe { GetProcAddress(handle, s!("RtlGetVersion")) }) else {
@@ -117,7 +127,7 @@ impl WindowsVersion {
     }
 
     // https://learn.microsoft.com/en-us/windows/win32/api/sysinfoapi/nf-sysinfoapi-getversionexw
-    pub fn from_get_version_ex() -> Result<WindowsVersion, Error> {
+    pub fn from_get_version_ex() -> Result<Self, Error> {
         let mut info: OSVERSIONINFOW = unsafe { mem::zeroed() };
         info.dwOSVersionInfoSize = mem::size_of::<OSVERSIONINFOW>() as u32;
 
@@ -133,8 +143,117 @@ impl WindowsVersion {
         })
     }
 
-    pub fn detect() -> Option<WindowsVersion> {
+    // https://learn.microsoft.com/en-us/windows/win32/wmisdk/wql-sql-for-wmi
+    pub fn from_wmi() -> Result<Self, Error> {
+        // XXX: Do not call CoUninitialize() at the end
+        unsafe { CoInitializeEx(None, COINIT_APARTMENTTHREADED)? };
+
+        unsafe {
+            CoInitializeSecurity(
+                None,
+                -1,
+                None,
+                None,
+                RPC_C_AUTHN_LEVEL_DEFAULT,
+                RPC_C_IMP_LEVEL_IMPERSONATE,
+                None,
+                EOAC_NONE,
+                None,
+            )?;
+        };
+
+        let locator: IWbemLocator =
+            unsafe { CoCreateInstance(&WbemLocator, None, CLSCTX_INPROC_SERVER)? };
+
+        let service = unsafe {
+            locator.ConnectServer(
+                &BSTR::from("ROOT\\CIMV2"),
+                &BSTR::new(),
+                &BSTR::new(),
+                &BSTR::new(),
+                WBEM_FLAG_CONNECT_USE_MAX_WAIT.0,
+                &BSTR::new(),
+                None,
+            )?
+        };
+
+        unsafe {
+            CoSetProxyBlanket(
+                &service,
+                RPC_C_AUTHN_WINNT,
+                RPC_C_AUTHZ_NONE,
+                None,
+                RPC_C_AUTHN_LEVEL_CALL,
+                RPC_C_IMP_LEVEL_IMPERSONATE,
+                None,
+                EOAC_NONE,
+            )?;
+        }
+
+        let enumerator = unsafe {
+            service.ExecQuery(
+                &BSTR::from("WQL"),
+                &BSTR::from("SELECT Version FROM Win32_OperatingSystem"),
+                WBEM_FLAG_FORWARD_ONLY | WBEM_FLAG_RETURN_IMMEDIATELY,
+                None,
+            )?
+        };
+
+        loop {
+            let mut classes = [None; 1];
+            let mut count = 0u32;
+
+            unsafe {
+                enumerator
+                    .Next(WBEM_INFINITE, &mut classes, &mut count)
+                    .ok()?
+            };
+
+            if count == 0 {
+                break;
+            }
+
+            let Some(class) = &classes[0] else {
+                break;
+            };
+
+            let mut var = VARIANT::default();
+            unsafe { class.Get(w!("Version"), 0, &mut var, None, None)? };
+
+            let ty = unsafe { var.Anonymous.Anonymous.vt };
+            if ty.0 != VT_BSTR.0 {
+                continue;
+            }
+
+            let val: &BSTR = unsafe { &var.Anonymous.Anonymous.Anonymous.bstrVal };
+            let val: String = val.try_into()?;
+
+            let mut s = val.split('.');
+            let Some(major) = s.next().and_then(|s| s.parse().ok()) else {
+                return Err(ErrorKind::WmiUnexpectedVersion(val).into());
+            };
+            let Some(minor) = s.next().and_then(|s| s.parse().ok()) else {
+                return Err(ErrorKind::WmiUnexpectedVersion(val).into());
+            };
+            let Some(build) = s.next().and_then(|s| s.parse().ok()) else {
+                return Err(ErrorKind::WmiUnexpectedVersion(val).into());
+            };
+
+            return Ok(Self {
+                major,
+                minor,
+                build,
+            });
+        }
+
+        Err(ErrorKind::WmiNotFound.into())
+    }
+
+    pub fn detect() -> Option<Self> {
         if let Ok(version) = Self::from_ntdll() {
+            return Some(version);
+        }
+        if let Ok(version) = Self::from_wmi() {
             return Some(version);
         }
         if let Ok(version) = Self::from_kernel32() {
@@ -172,6 +291,14 @@ mod tests {
         let v = WindowsVersion::from_get_version_ex().unwrap();
         // `GetVersionExW` may return wrong version
         assert!(v.major >= 6, "{:?}", v);
+    }
+
+    #[test]
+    fn test_from_wmi() {
+        let v = WindowsVersion::from_wmi().unwrap();
+        assert_eq!(v.major, 10, "{:?}", v);
+        assert_eq!(v.minor, 0, "{:?}", v);
+        assert!(v.build > 0, "{:?}", v);
     }
 
     #[test]

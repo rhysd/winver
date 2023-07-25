@@ -6,9 +6,10 @@
 ```rust
 use winver::WindowsVersion;
 
-let version = WindowsVersion::detect()?;
-if version >= WindowsVersion::new(10, 0, 15063) {
-    println!("OS version is 10.0.15063 or later");
+if let Some(version) = WindowsVersion::detect() {
+    if version >= WindowsVersion::new(10, 0, 15063) {
+        println!("OS version is 10.0.15063 or later");
+    }
 }
 ```
 

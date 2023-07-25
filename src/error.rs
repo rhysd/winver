@@ -1,6 +1,7 @@
 use std::alloc::LayoutError;
 use std::error::Error as StdError;
 use std::fmt;
+use std::string::FromUtf16Error;
 use windows::core::Error as WinError;
 
 #[derive(Debug)]
@@ -10,6 +11,9 @@ pub(crate) enum ErrorKind {
     Kernel32VerNotFound,
     NoRtlGetVersion,
     RtlGetVersionFailure(i32),
+    Utf16ToUtf8(FromUtf16Error),
+    WmiNotFound,
+    WmiUnexpectedVersion(String),
 }
 
 #[derive(Debug)]
@@ -37,6 +41,16 @@ impl fmt::Display for Error {
                 "RtlGetVersion function call failed with status {:x}",
                 *status,
             ),
+            ErrorKind::Utf16ToUtf8(err) => write!(
+                f,
+                "Error while converting UTF-16 string into UTF-8: {}",
+                err,
+            ),
+            ErrorKind::WmiNotFound => write!(
+                f,
+                "No 'Version' property is found in 'Win32_OperatingSystem' class queried via WQL",
+            ),
+            ErrorKind::WmiUnexpectedVersion(ver) => write!(f, "Unexpected version string is found in 'Version' property of 'Win32_OperatingSystem' class: {:?}", ver),
         }
     }
 }
@@ -46,6 +60,7 @@ impl StdError for Error {
         match self.kind() {
             ErrorKind::Windows(err) => Some(err),
             ErrorKind::Layout(err) => Some(err),
+            ErrorKind::Utf16ToUtf8(err) => Some(err),
             _ => None,
         }
     }
@@ -66,5 +81,11 @@ impl From<WinError> for Error {
 impl From<LayoutError> for Error {
     fn from(err: LayoutError) -> Self {
         ErrorKind::Layout(err).into()
+    }
+}
+
+impl From<FromUtf16Error> for Error {
+    fn from(err: FromUtf16Error) -> Self {
+        ErrorKind::Utf16ToUtf8(err).into()
     }
 }
