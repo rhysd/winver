@@ -2,7 +2,7 @@
 name = "winver"
 version = "0.1.0"
 edition = "2021"
-rust-version = "1.56.0" # For Rust 2021
+rust-version = "1.65.0" # For let-else statement
 authors = ["rhysd <lin90162@yahoo.co.jp>"]
 description = """
 winver is a tiny crate to detect real OS version on Windows depending on windows crate only.

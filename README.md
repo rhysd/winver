@@ -43,6 +43,8 @@ Add the following lines to your project's Cargo.toml. Note that `winver` crate i
 winver = "0.1.0"
 ```
 
+Minimum supported Rust version is 1.65.0 for using let-else statement.
+
 ## License
 
 Distributed under [the MIT license](./LICENSE).
