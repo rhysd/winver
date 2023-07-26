@@ -3,6 +3,24 @@ name = "winver"
 version = "0.1.0"
 edition = "2021"
 rust-version = "1.56.0" # For Rust 2021
+authors = ["rhysd <lin90162@yahoo.co.jp>"]
+description = """
+winver is a tiny crate to detect real OS version on Windows depending on windows crate only.
+There are several ways to get Windows OS version and each of them has its pitfall. This crate
+provides API to get the version more easily and safely avoiding the pitfalls.
+"""
+license = "MIT"
+homepage = "https://github.com/rhysd/winver#readme"
+repository = "https://github.com/rhysd/winver"
+readme = "README.md"
+include = [
+    "/src",
+    "/LICENSE",
+    "/README.md",
+    "/CHANGELOG.md",
+]
+categories = ["os::windows-apis"]
+keywords = ["windows", "os", "version"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
