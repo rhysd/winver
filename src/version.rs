@@ -1,7 +1,7 @@
 use std::cmp::Ordering;
 use std::fmt;
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub struct WindowsVersion {
     pub major: u32,
     pub minor: u32,

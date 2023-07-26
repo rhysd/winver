@@ -48,7 +48,7 @@ impl Drop for Buffer {
 
 impl WindowsVersion {
     // https://github.com/python/cpython/blob/a1a3193990cd6658c1fe859b88a2bc03971a16df/Python/sysmodule.c#L1533
-    pub fn from_kernel32() -> Result<Self, Error> {
+    pub fn from_kernel32_dll() -> Result<Self, Error> {
         let handle = unsafe { GetModuleHandleW(w!("kernel32.dll"))? };
 
         let mut path = [0u16; MAX_PATH as usize];
@@ -101,7 +101,7 @@ impl WindowsVersion {
     }
 
     // https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/wdm/nf-wdm-rtlgetversion
-    pub fn from_ntdll() -> Result<Self, Error> {
+    pub fn from_ntdll_dll() -> Result<Self, Error> {
         let handle = unsafe { GetModuleHandleW(w!("ntdll.dll"))? };
 
         let Some(proc) = (unsafe { GetProcAddress(handle, s!("RtlGetVersion")) }) else {
@@ -144,7 +144,7 @@ impl WindowsVersion {
     }
 
     // https://learn.microsoft.com/en-us/windows/win32/wmisdk/wql-sql-for-wmi
-    pub fn from_wmi() -> Result<Self, Error> {
+    pub fn from_wmi_os_provider() -> Result<Self, Error> {
         // XXX: Do not call CoUninitialize() at the end
         unsafe { CoInitializeEx(None, COINIT_APARTMENTTHREADED)? };
 
@@ -250,13 +250,13 @@ impl WindowsVersion {
     }
 
     pub fn detect() -> Option<Self> {
-        if let Ok(version) = Self::from_ntdll() {
+        if let Ok(version) = Self::from_ntdll_dll() {
             return Some(version);
         }
-        if let Ok(version) = Self::from_wmi() {
+        if let Ok(version) = Self::from_wmi_os_provider() {
             return Some(version);
         }
-        if let Ok(version) = Self::from_kernel32() {
+        if let Ok(version) = Self::from_kernel32_dll() {
             return Some(version);
         }
         if let Ok(version) = Self::from_get_version_ex() {
@@ -272,15 +272,15 @@ mod tests {
 
     #[test]
     fn test_from_kernel32_dll() {
-        let v = WindowsVersion::from_kernel32().unwrap();
+        let v = WindowsVersion::from_kernel32_dll().unwrap();
         assert_eq!(v.major, 10, "{:?}", v);
         assert_eq!(v.minor, 0, "{:?}", v);
         assert!(v.build > 0, "{:?}", v);
     }
 
     #[test]
-    fn test_from_ntdll() {
-        let v = WindowsVersion::from_ntdll().unwrap();
+    fn test_from_ntdll_dll() {
+        let v = WindowsVersion::from_ntdll_dll().unwrap();
         assert_eq!(v.major, 10, "{:?}", v);
         assert_eq!(v.minor, 0, "{:?}", v);
         assert!(v.build > 0, "{:?}", v);
@@ -294,8 +294,8 @@ mod tests {
     }
 
     #[test]
-    fn test_from_wmi() {
-        let v = WindowsVersion::from_wmi().unwrap();
+    fn test_from_wmi_os_provider() {
+        let v = WindowsVersion::from_wmi_os_provider().unwrap();
         assert_eq!(v.major, 10, "{:?}", v);
         assert_eq!(v.minor, 0, "{:?}", v);
         assert!(v.build > 0, "{:?}", v);
@@ -307,5 +307,12 @@ mod tests {
         assert_eq!(v.major, 10, "{:?}", v);
         assert_eq!(v.minor, 0, "{:?}", v);
         assert!(v.build > 0, "{:?}", v);
+    }
+
+    #[test]
+    fn test_accurate_version_from_ntdll_and_wmi() {
+        let v1 = WindowsVersion::from_ntdll_dll().unwrap();
+        let v2 = WindowsVersion::from_wmi_os_provider().unwrap();
+        assert_eq!(v1, v2);
     }
 }

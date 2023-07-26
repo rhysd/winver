@@ -29,7 +29,7 @@ The above `WindowsVersion::detect` function works as follows:
 5. Give up getting OS version and return `None`.
 
 Each steps are implemented as isolated funcitons in `WindowsVersion`. For example, the step 1. is equivalent to
-`WindowsVersion::from_ntdll`.
+`WindowsVersion::from_ntdll_dll`.
 
 This logic was implemented referring to the implementation of Python's [`sys.getwindowsversion`][getwindowsversion] and
 [`platform.win32_ver`][win32_ver].
