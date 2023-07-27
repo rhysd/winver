@@ -5,7 +5,7 @@ use std::string::FromUtf16Error;
 use windows::core::Error as WinError;
 
 #[derive(Debug)]
-pub(crate) enum ErrorKind {
+pub enum ErrorKind {
     Windows(WinError),
     Layout(LayoutError),
     Kernel32VerNotFound,
@@ -20,7 +20,7 @@ pub(crate) enum ErrorKind {
 pub struct Error(Box<ErrorKind>);
 
 impl Error {
-    fn kind(&self) -> &ErrorKind {
+    pub fn kind(&self) -> &ErrorKind {
         &self.0
     }
 }
@@ -87,5 +87,39 @@ impl From<LayoutError> for Error {
 impl From<FromUtf16Error> for Error {
     fn from(err: FromUtf16Error) -> Self {
         ErrorKind::Utf16ToUtf8(err).into()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_format() {
+        let err: Error = WinError::OK.into();
+        let msg = format!("{}", err);
+        assert!(msg.contains("Error while calling Windows API"), "{:?}", msg);
+    }
+
+    #[test]
+    fn test_kind() {
+        let err: Error = ErrorKind::Kernel32VerNotFound.into();
+        assert!(
+            matches!(err.kind(), ErrorKind::Kernel32VerNotFound),
+            "{:?}",
+            err,
+        );
+    }
+
+    #[test]
+    fn test_source() {
+        let err: Error = WinError::OK.into();
+        let inner = err.source().unwrap();
+        let msg = format!("{}", inner);
+        assert!(
+            msg.contains("The operation completed successfully"),
+            "{:?}",
+            msg,
+        );
     }
 }
