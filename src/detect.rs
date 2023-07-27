@@ -5,7 +5,7 @@ use core::ptr::null_mut;
 use std::alloc::{self, Layout};
 use std::mem;
 use windows::core::{Error as WinError, BSTR, PCWSTR};
-use windows::Win32::Foundation::MAX_PATH;
+use windows::Win32::Foundation::{MAX_PATH, RPC_E_TOO_LATE};
 use windows::Win32::Storage::FileSystem::{
     GetFileVersionInfoSizeW, GetFileVersionInfoW, VerQueryValueW, VS_FIXEDFILEINFO,
 };
@@ -146,9 +146,11 @@ impl WindowsVersion {
     // https://learn.microsoft.com/en-us/windows/win32/wmisdk/wql-sql-for-wmi
     pub fn from_wmi_os_provider() -> Result<Self, Error> {
         // XXX: Do not call CoUninitialize() at the end
-        unsafe { CoInitializeEx(None, COINIT_APARTMENTTHREADED)? };
-
         unsafe {
+            CoInitializeEx(None, COINIT_APARTMENTTHREADED)?;
+        }
+
+        if let Err(err) = unsafe {
             CoInitializeSecurity(
                 None,
                 -1,
@@ -159,8 +161,13 @@ impl WindowsVersion {
                 None,
                 EOAC_NONE,
                 None,
-            )?;
-        };
+            )
+        } {
+            // RPC_E_TOO_LATE happens when someone else already configured security
+            if err.code() != RPC_E_TOO_LATE {
+                return Err(err.into());
+            }
+        }
 
         let locator: IWbemLocator =
             unsafe { CoCreateInstance(&WbemLocator, None, CLSCTX_INPROC_SERVER)? };
@@ -299,6 +306,9 @@ mod tests {
         assert_eq!(v.major, 10, "{:?}", v);
         assert_eq!(v.minor, 0, "{:?}", v);
         assert!(v.build > 0, "{:?}", v);
+
+        // Initializing security fails on the second call. Check if the failure is handled correctly.
+        let _ = WindowsVersion::from_wmi_os_provider().unwrap();
     }
 
     #[test]
