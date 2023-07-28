@@ -1,8 +1,10 @@
 `winver` crate
 ==============
 [![CI][ci-badge]][ci]
+[![crate][crates-io-badge]][crate]
+[![docs][doc-badge]][doc]
 
-`winver` is a tiny Rust crate to detect real Windows OS version depending on [`windows` crate][windows] only.
+[`winver`][crate] is a tiny Rust crate to detect real Windows OS version depending on [`windows` crate][windows] only.
 
 ```rust
 use winver::WindowsVersion;
@@ -34,6 +36,8 @@ Each steps are implemented as isolated funcitons in `WindowsVersion`. For exampl
 This logic was implemented referring to the implementation of Python's [`sys.getwindowsversion`][getwindowsversion] and
 [`platform.win32_ver`][win32_ver].
 
+See [the API documentation][doc] for more details.
+
 ## Installation
 
 Add the following lines to your project's Cargo.toml. Note that `winver` crate is available only on Windows.
@@ -51,6 +55,10 @@ Distributed under [the MIT license](./LICENSE).
 
 [ci-badge]: https://github.com/rhysd/winver/actions/workflows/ci.yaml/badge.svg
 [ci]: https://github.com/rhysd/winver/actions/workflows/ci.yaml
+[crates-io-badge]: https://img.shields.io/crates/v/winver.svg
+[crate]: https://crates.io/crates/winver
+[doc-badge]: https://docs.rs/winver/badge.svg
+[doc]: https://docs.rs/winver/latest/winver/
 [windows]: https://crates.io/crates/windows
 [wtlgetver]: https://learn.microsoft.com/en-us/windows/win32/devnotes/rtlgetversion
 [wmi]: https://learn.microsoft.com/en-us/windows/win32/wmisdk/wmi-start-page

@@ -13,11 +13,11 @@ license = "MIT"
 homepage = "https://github.com/rhysd/winver#readme"
 repository = "https://github.com/rhysd/winver"
 readme = "README.md"
+documentation = "https://docs.rs/winver/latest/winver/"
 include = [
     "/src",
     "/LICENSE",
     "/README.md",
-    "/CHANGELOG.md",
 ]
 categories = ["os::windows-apis"]
 keywords = ["windows", "os", "version"]
