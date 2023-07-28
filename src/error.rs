@@ -4,22 +4,33 @@ use std::fmt;
 use std::string::FromUtf16Error;
 use windows::core::Error as WinError;
 
+/// Kinds of errors returned from `WindowsVersion` methods.
 #[derive(Debug)]
 pub enum ErrorKind {
+    /// Error on calling Win32 APIs with windows-rs crate.
     Windows(WinError),
+    /// Layout error on allocating a memory buffer on heap.
     Layout(LayoutError),
+    /// Version information is not found in kernel32.dll file.
     Kernel32VerNotFound,
+    /// `RtlGetVersion` symbol is not found in ntdll.dll when dynamically loading the DLL file.
     NoRtlGetVersion,
+    /// Failure with error code returned from `RtlGetVersion` call.
     RtlGetVersionFailure(i32),
+    /// UTF-16 to UTF-8 conversion failure when converting `BSTR` into `String`.
     Utf16ToUtf8(FromUtf16Error),
+    /// No version information is found in WMI's Win32 OS system provider.
     WmiNotFound,
+    /// Version string obtained from WMI's Win32 OS system provider is in unexpected format.
     WmiUnexpectedVersion(String),
 }
 
+/// The single error type for all errors returned from this crate.
 #[derive(Debug)]
 pub struct Error(Box<ErrorKind>);
 
 impl Error {
+    /// Return the kind of the error to know the details and to get the underlying errors.
     pub fn kind(&self) -> &ErrorKind {
         &self.0
     }

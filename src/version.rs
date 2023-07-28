@@ -1,6 +1,20 @@
 use std::cmp::Ordering;
 use std::fmt;
 
+/// Windows OS version.
+///
+/// This type implements `Eq` and `Ord` so you can easily compare two versions.
+///
+/// ```
+/// assert!(WindowsVersion::new(10, 0, 1000) < WindowsVersion::new(10, 0, 2000));
+/// ```
+///
+/// This type provides four methods to detect the OS version.
+///
+/// - [`WindowsVersion::from_ntdll_dll`]
+/// - [`WindowsVersion::from_wmi_os_provider`]
+/// - [`WindowsVersion::from_kernel32_dll`]
+/// - [`WindowsVersion::from_get_version_ex`]
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub struct WindowsVersion {
     pub major: u32,
@@ -9,6 +23,7 @@ pub struct WindowsVersion {
 }
 
 impl WindowsVersion {
+    /// Create [`WindowsVersion`] instance with the major, minor, and build numbers.
     pub fn new(major: u32, minor: u32, build: u32) -> Self {
         Self {
             major,
