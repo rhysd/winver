@@ -1,6 +1,6 @@
 [package]
 name = "winver"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 rust-version = "1.65.0" # For let-else statement
 authors = ["rhysd <lin90162@yahoo.co.jp>"]
@@ -40,4 +40,5 @@ features = [
 ]
 
 [package.metadata.docs.rs]
-default-target = "stable-x86_64-pc-windows-msvc"
+default-target = "x86_64-pc-windows-msvc"
+targets = ["aarch64-pc-windows-msvc", "i686-pc-windows-msvc", "x86_64-pc-windows-msvc"]
