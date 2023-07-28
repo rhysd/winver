@@ -6,6 +6,7 @@ use std::fmt;
 /// This type implements `Eq` and `Ord` so you can easily compare two versions.
 ///
 /// ```
+/// # use winver::WindowsVersion;
 /// assert!(WindowsVersion::new(10, 0, 1000) < WindowsVersion::new(10, 0, 2000));
 /// ```
 ///
@@ -17,8 +18,11 @@ use std::fmt;
 /// - [`WindowsVersion::from_get_version_ex`]
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub struct WindowsVersion {
+    /// Major version of Windows OS.
     pub major: u32,
+    /// Minor version of Windows OS.
     pub minor: u32,
+    /// Build number of Windows OS.
     pub build: u32,
 }
 
