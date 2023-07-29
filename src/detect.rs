@@ -204,8 +204,8 @@ impl WindowsVersion {
 
     /// Detect the OS version of current Windows system from `kernel32.dll` file's version information.
     ///
-    /// The version actually represents the OS version where `kernel32.dll` is built. The build number may be slightly
-    /// different from the actual OS version. This method should be used as fallback of other methods.
+    /// The version actually represents the OS version where the `kernel32.dll` file was built. The build number may be
+    /// slightly different from the actual OS version. This method should be used as fallback of other methods.
     ///
     /// This method was implemented referring to [Python's `sys.getwindowsversion` implementation][py].
     ///
@@ -265,7 +265,8 @@ impl WindowsVersion {
     /// Detect the OS version of current Windows system using [`GetVersionEx` Win32 API][api].
     ///
     /// You need to embed a compatibility manifest into your executable. Otherwise, this method always returns version
-    /// 6.2 (Windows 8) even if you're on Windows 10 or later.
+    /// 6.2 (Windows 8) even if you're on Windows 10 or later. So this method should be used as fallback of other
+    /// methods.
     ///
     /// This behavior is a limitation of the `GetVersionEx` function. Please read
     /// [the Remarks section of `VerifyVersionInfo` document][remarks].
@@ -288,7 +289,7 @@ impl WindowsVersion {
         })
     }
 
-    /// Return the OS version of the current Windows system. This method tries to get the version in the following order.
+    /// Return the OS version of the current Windows system. This method tries to get the version with the following steps.
     /// When no version could not be detected on all steps, this method returns `None`.
     ///
     /// 1. Try to detect the OS version with [`WindowsVersion::from_ntdll_dll`]

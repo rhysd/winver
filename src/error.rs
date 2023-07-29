@@ -127,10 +127,6 @@ mod tests {
         let err: Error = WinError::OK.into();
         let inner = err.source().unwrap();
         let msg = format!("{}", inner);
-        assert!(
-            msg.contains("The operation completed successfully"),
-            "{:?}",
-            msg,
-        );
+        assert!(msg.contains("(0x00000000)"), "{:?}", msg);
     }
 }
