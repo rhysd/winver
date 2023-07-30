@@ -61,7 +61,11 @@ impl fmt::Display for Error {
                 f,
                 "No 'Version' property is found in 'Win32_OperatingSystem' class queried via WQL",
             ),
-            ErrorKind::WmiUnexpectedVersion(ver) => write!(f, "Unexpected version string is found in 'Version' property of 'Win32_OperatingSystem' class: {:?}", ver),
+            ErrorKind::WmiUnexpectedVersion(ver) => write!(
+                f,
+                "Unexpected version string at 'Version' property of 'Win32_OperatingSystem' WMI provider: {:?}",
+                ver,
+            ),
         }
     }
 }

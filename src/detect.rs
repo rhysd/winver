@@ -163,8 +163,8 @@ impl WindowsVersion {
             unsafe {
                 enumerator
                     .Next(WBEM_INFINITE, &mut classes, &mut count)
-                    .ok()?
-            };
+                    .ok()?;
+            }
 
             if count == 0 {
                 break;
@@ -175,32 +175,26 @@ impl WindowsVersion {
             };
 
             let mut var = VARIANT::default();
+            // Note: All properties are listed here: https://learn.microsoft.com/en-us/windows/win32/cimwin32prov/win32-operatingsystem
             unsafe { class.Get(w!("Version"), 0, &mut var, None, None)? };
 
-            let ty = unsafe { var.Anonymous.Anonymous.vt };
-            if ty.0 != VT_BSTR.0 {
+            if unsafe { var.Anonymous.Anonymous.vt } != VT_BSTR {
                 continue;
             }
 
             let val: &BSTR = unsafe { &var.Anonymous.Anonymous.Anonymous.bstrVal };
             let val: String = val.try_into()?;
 
-            let mut s = val.split('.');
-            let Some(major) = s.next().and_then(|s| s.parse().ok()) else {
-                return Err(ErrorKind::WmiUnexpectedVersion(val).into());
-            };
-            let Some(minor) = s.next().and_then(|s| s.parse().ok()) else {
-                return Err(ErrorKind::WmiUnexpectedVersion(val).into());
-            };
-            let Some(build) = s.next().and_then(|s| s.parse().ok()) else {
-                return Err(ErrorKind::WmiUnexpectedVersion(val).into());
-            };
+            fn parse(s: &str) -> Option<WindowsVersion> {
+                let mut s = s.split('.');
+                Some(WindowsVersion {
+                    major: s.next()?.parse().ok()?,
+                    minor: s.next()?.parse().ok()?,
+                    build: s.next()?.parse().ok()?,
+                })
+            }
 
-            return Ok(Self {
-                major,
-                minor,
-                build,
-            });
+            return parse(&val).ok_or_else(|| ErrorKind::WmiUnexpectedVersion(val).into());
         }
 
         Err(ErrorKind::WmiNotFound.into())
