@@ -38,6 +38,10 @@ impl Buffer {
     fn deallocate(&self) {
         unsafe { alloc::dealloc(self.ptr, self.layout) };
     }
+
+    fn ptr(&self) -> *mut c_void {
+        self.ptr as *mut _
+    }
 }
 
 impl Drop for Buffer {
@@ -69,7 +73,7 @@ impl WindowsVersion {
         let mut info: OSVERSIONINFOW = unsafe { mem::zeroed() };
         info.dwOSVersionInfoSize = mem::size_of::<OSVERSIONINFOW>() as u32;
 
-        let status = unsafe { proc(&mut info as *mut _) };
+        let status = unsafe { proc(&mut info) };
         if status != 0 {
             return Err(ErrorKind::RtlGetVersionFailure(status).into());
         }
@@ -229,22 +233,15 @@ impl WindowsVersion {
 
         let buf = Buffer::allocate(size as usize)?;
 
-        let success = unsafe { GetFileVersionInfoW(path, 0, size, buf.ptr as *mut c_void) };
+        let success = unsafe { GetFileVersionInfoW(path, 0, size, buf.ptr()) };
         if !success.as_bool() {
             return Err(WinError::from_win32().into());
         }
 
-        let mut info = null_mut() as *mut c_void;
+        let mut info: *mut c_void = null_mut();
         let mut info_len = 0u32;
 
-        let success = unsafe {
-            VerQueryValueW(
-                buf.ptr as *const c_void,
-                w!(""),
-                &mut info as *mut *mut c_void,
-                &mut info_len as *mut u32,
-            )
-        };
+        let success = unsafe { VerQueryValueW(buf.ptr(), w!(""), &mut info, &mut info_len) };
         if !success.as_bool() {
             return Err(WinError::from_win32().into());
         }
@@ -277,7 +274,7 @@ impl WindowsVersion {
         let mut info: OSVERSIONINFOW = unsafe { mem::zeroed() };
         info.dwOSVersionInfoSize = mem::size_of::<OSVERSIONINFOW>() as u32;
 
-        let success = unsafe { GetVersionExW(&mut info as *mut _) };
+        let success = unsafe { GetVersionExW(&mut info) };
         if !success.as_bool() {
             return Err(WinError::from_win32().into());
         }
