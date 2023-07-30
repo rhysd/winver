@@ -11,7 +11,7 @@ use winver::WindowsVersion;
 
 let version = WindowsVersion::detect().unwrap();
 if version >= WindowsVersion::new(10, 0, 15063) {
-    println!("OS version is 10.0.15063 or later");
+    println!("OS version is 10.0.15063 or later: {}", version);
 }
 ```
 
@@ -44,7 +44,7 @@ Add the following lines to your project's Cargo.toml. Note that `winver` crate i
 
 ```toml
 [target."cfg(windows)".dependencies]
-winver = "0.1.0"
+winver = "1"
 ```
 
 Minimum supported Rust version is 1.65.0 for using let-else statement.
