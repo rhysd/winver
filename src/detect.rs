@@ -51,15 +51,16 @@ impl Drop for Buffer {
 }
 
 impl WindowsVersion {
-    /// Detect the OS version of current Windows system using [`RtlGetVersion`][api] function in `ntdll.dll` DLL.
+    /// Detect the OS version of current Windows system using [`RtlGetVersion`][getver] function in `ntdll.dll` DLL.
     ///
     /// The obtained version is accurate. And this method is faster than [`WindowsVersion::from_wmi_os_provider`].
     /// However `ntdll.dll` does not always exist in your system and `RtlGetVersion` is a kernel-mode function.
     ///
-    /// This method loads `ntdll.dll` dynamically and tries to call `RtlGetVersion` function in it. When the dynamic
-    /// call fails, this method returns an error.
+    /// This method loads `ntdll.dll` dynamically and tries to call `RtlGetVersion` function in it with
+    /// [`GetProcAddress`][getproc]. If the dynamic call fails, this method returns an error.
     ///
-    /// [api]: https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/wdm/nf-wdm-rtlgetversion
+    /// [getver]: https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/wdm/nf-wdm-rtlgetversion
+    /// [getproc]: https://learn.microsoft.com/en-us/windows/win32/api/libloaderapi/nf-libloaderapi-getprocaddress
     pub fn from_ntdll_dll() -> Result<Self, Error> {
         let handle = unsafe { GetModuleHandleW(w!("ntdll.dll"))? };
 
@@ -90,6 +91,9 @@ impl WindowsVersion {
     ///
     /// The obtained version is accurate. However WMI may not be available due to the process security level setting.
     /// When it is not possible to access the provider, this method returns an error.
+    ///
+    /// Note that this method is slow (it took 100ms on my machine). So [`WindowsVersion::from_ntdll_dll`] should be
+    /// tried at first.
     ///
     /// [wmi]: https://learn.microsoft.com/en-us/windows/win32/wmisdk/wmi-start-page
     /// [win32prov]: https://learn.microsoft.com/en-us/windows/win32/cimwin32prov/win32-operatingsystem
